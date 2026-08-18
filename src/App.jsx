@@ -1,6 +1,24 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ANIME_VERSES, EXPANDED_ROLES } from './data/animeData';
+import React, {
+  useEffect,
+  useMemo,
+  useState
+} from 'react';
+
+import {
+  ANIME_VERSES,
+  EXPANDED_ROLES
+} from './data/animeData';
+
+import GameHub from './components/GameHub';
+import BattleMode from './modes/BattleMode';
+import TournamentMode from './modes/TournamentMode';
+import AuctionMode from './modes/AuctionMode';
+import AITactician from './components/AITactician';
+
 import confetti from 'canvas-confetti';
+
+import AIDraftTactician from './components/AIDraftTactician';
+
 import {
   Swords,
   RotateCcw,
@@ -16,7 +34,6 @@ import {
   BookOpen,
   Brain,
   X,
-  HelpCircle,
   Crown,
   Crosshair,
   BarChart3,
@@ -27,33 +44,69 @@ import {
   Bot,
   ImageOff,
   Shuffle,
-  Pencil,
-  RotateCcw as ResetIcon,
-  Shield,
-  Wand2
+  Wand2,
+  Shield
 } from 'lucide-react';
+
 
 /* =========================================================
    BASIC HELPERS
 ========================================================= */
 
-const clamp = (value, min = 0, max = 100) =>
-  Math.max(min, Math.min(max, Number(value) || 0));
+const clamp = (
+  value,
+  min = 0,
+  max = 100
+) =>
+  Math.max(
+    min,
+    Math.min(
+      max,
+      Number(value) || 0
+    )
+  );
 
-const average = (values) => {
-  if (!values.length) return 0;
-  return values.reduce((a, b) => a + b, 0) / values.length;
+
+const average = (
+  values
+) => {
+  if (!values.length) {
+    return 0;
+  }
+
+  return (
+    values.reduce(
+      (a, b) =>
+        a + b,
+      0
+    ) /
+    values.length
+  );
 };
 
-const normalizeName = (value) =>
-  String(value || '').trim().toLowerCase();
+
+const normalizeName = (
+  value
+) =>
+  String(
+    value || ''
+  )
+    .trim()
+    .toLowerCase();
+
 
 /* =========================================================
    FORM RARITY
 ========================================================= */
 
-const getFormRarity = (formName, formIndex) => {
-  const text = String(formName || '').toLowerCase();
+const getFormRarity = (
+  formName,
+  formIndex
+) => {
+  const text =
+    String(
+      formName || ''
+    ).toLowerCase();
 
   if (
     /ultra instinct|baryon|gear fifth|gear 5|true bankai|horn of|heian|black frieza|beast|devil union|perfect|cosmic|peak|full power|final form|goal of all life|hero of hell|founder|dragon emperor/.test(
@@ -68,6 +121,7 @@ const getFormRarity = (formName, formIndex) => {
     };
   }
 
+
   if (
     /ultimate|awakened|bankai|domain|berserk|monarch|dragon|perfect|100%|full power|mature|completed|prime|awakened titan/.test(
       text
@@ -81,6 +135,7 @@ const getFormRarity = (formName, formIndex) => {
     };
   }
 
+
   if (
     /advanced|mastery|sage|shikai|second|third|rage|released|awakening|transformation|spirit|super|hybrid/.test(
       text
@@ -93,6 +148,7 @@ const getFormRarity = (formName, formIndex) => {
         'bg-purple-950 border-purple-600 text-purple-300'
     };
   }
+
 
   if (
     /enhanced|powered|powered-up|evolved|stage|form 2|level 2/.test(
@@ -108,6 +164,7 @@ const getFormRarity = (formName, formIndex) => {
     };
   }
 
+
   return {
     name: 'COMMON',
     icon: '⚪',
@@ -116,8 +173,9 @@ const getFormRarity = (formName, formIndex) => {
   };
 };
 
+
 /* =========================================================
-   ROLE NAME PRESETS
+   ROLE PRESETS
 ========================================================= */
 
 const ROLE_NAME_PRESETS = {
@@ -214,6 +272,7 @@ const ROLE_NAME_PRESETS = {
   }
 };
 
+
 /* =========================================================
    IMAGE CACHE
 ========================================================= */
@@ -221,58 +280,77 @@ const ROLE_NAME_PRESETS = {
 const IMAGE_CACHE_KEY =
   'anime_draft_arena_character_images_v3';
 
+
 const getStoredImages = () => {
   try {
-    const raw = localStorage.getItem(
-      IMAGE_CACHE_KEY
-    );
+    const raw =
+      localStorage.getItem(
+        IMAGE_CACHE_KEY
+      );
 
-    return raw ? JSON.parse(raw) : {};
+    return raw
+      ? JSON.parse(raw)
+      : {};
   } catch {
     return {};
   }
 };
+
 
 const saveStoredImage = (
   characterName,
   imageUrl
 ) => {
   try {
-    const cache = getStoredImages();
+    const cache =
+      getStoredImages();
 
-    cache[normalizeName(characterName)] =
-      imageUrl;
+    cache[
+      normalizeName(
+        characterName
+      )
+    ] = imageUrl;
 
     localStorage.setItem(
       IMAGE_CACHE_KEY,
-      JSON.stringify(cache)
+      JSON.stringify(
+        cache
+      )
     );
   } catch {
-    // Ignore storage failures.
+    /* Storage failure ignored. */
   }
 };
 
-/* =========================================================
-   CHECK IMAGE
-========================================================= */
 
-const testImage = (url) =>
-  new Promise((resolve) => {
-    if (!url) {
-      resolve(false);
-      return;
+const testImage = (
+  url
+) =>
+  new Promise(
+    (resolve) => {
+      if (!url) {
+        resolve(false);
+        return;
+      }
+
+      const image =
+        new Image();
+
+      image.onload =
+        () =>
+          resolve(true);
+
+      image.onerror =
+        () =>
+          resolve(false);
+
+      image.src = url;
     }
+  );
 
-    const img = new Image();
-
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(false);
-
-    img.src = url;
-  });
 
 /* =========================================================
-   ANILIST
+   ANILIST IMAGE SEARCH
 ========================================================= */
 
 const ANILIST_QUERY = `
@@ -291,118 +369,154 @@ const ANILIST_QUERY = `
   }
 `;
 
-const searchAniList = async (
-  characterName
-) => {
-  try {
-    const response = await fetch(
-      'https://graphql.anilist.co',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type':
-            'application/json',
-          Accept: 'application/json'
-        },
-        body: JSON.stringify({
-          query: ANILIST_QUERY,
-          variables: {
-            search: characterName
+
+const searchAniList =
+  async (
+    characterName
+  ) => {
+    try {
+      const response =
+        await fetch(
+          'https://graphql.anilist.co',
+          {
+            method:
+              'POST',
+
+            headers: {
+              'Content-Type':
+                'application/json',
+
+              Accept:
+                'application/json'
+            },
+
+            body:
+              JSON.stringify({
+                query:
+                  ANILIST_QUERY,
+
+                variables: {
+                  search:
+                    characterName
+                }
+              })
           }
-        })
+        );
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          `AniList HTTP ${response.status}`
+        );
       }
-    );
 
-    if (!response.ok) {
-      throw new Error(
-        `AniList HTTP ${response.status}`
+      const json =
+        await response.json();
+
+      return (
+        json?.data
+          ?.Character
+          ?.image?.large ||
+        json?.data
+          ?.Character
+          ?.image?.medium ||
+        null
       );
-    }
-
-    const json = await response.json();
-
-    return (
-      json?.data?.Character?.image?.large ||
-      json?.data?.Character?.image?.medium ||
-      null
-    );
-  } catch (error) {
-    console.warn(
-      'AniList image search failed:',
-      characterName,
+    } catch (
       error
-    );
-
-    return null;
-  }
-};
-
-/* =========================================================
-   JIKAN
-========================================================= */
-
-const searchJikan = async (
-  characterName
-) => {
-  try {
-    const url =
-      `https://api.jikan.moe/v4/characters?q=` +
-      `${encodeURIComponent(
-        characterName
-      )}&limit=5`;
-
-    const response =
-      await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(
-        `Jikan HTTP ${response.status}`
+    ) {
+      console.warn(
+        'AniList image search failed:',
+        characterName,
+        error
       );
-    }
 
-    const json =
-      await response.json();
-
-    const results =
-      json?.data || [];
-
-    if (!results.length) {
       return null;
     }
+  };
 
-    const exact =
-      results.find(
-        (item) =>
-          normalizeName(
-            item?.name
-          ) ===
-          normalizeName(
-            characterName
-          )
-      );
-
-    return (
-      exact?.images?.jpg?.image_url ||
-      results[0]?.images?.jpg?.image_url ||
-      null
-    );
-  } catch (error) {
-    console.warn(
-      'Jikan image search failed:',
-      characterName,
-      error
-    );
-
-    return null;
-  }
-};
 
 /* =========================================================
-   PERMANENT IMAGE RESOLVER
+   JIKAN IMAGE SEARCH
+========================================================= */
+
+const searchJikan =
+  async (
+    characterName
+  ) => {
+    try {
+      const url =
+        `https://api.jikan.moe/v4/characters?q=${encodeURIComponent(
+          characterName
+        )}&limit=5`;
+
+      const response =
+        await fetch(
+          url
+        );
+
+      if (
+        !response.ok
+      ) {
+        throw new Error(
+          `Jikan HTTP ${response.status}`
+        );
+      }
+
+      const json =
+        await response.json();
+
+      const results =
+        json?.data ||
+        [];
+
+      if (
+        !results.length
+      ) {
+        return null;
+      }
+
+      const exact =
+        results.find(
+          (item) =>
+            normalizeName(
+              item?.name
+            ) ===
+            normalizeName(
+              characterName
+            )
+        );
+
+      return (
+        exact?.images?.jpg
+          ?.image_url ||
+        results[0]?.images
+          ?.jpg?.image_url ||
+        null
+      );
+    } catch (
+      error
+    ) {
+      console.warn(
+        'Jikan image search failed:',
+        characterName,
+        error
+      );
+
+      return null;
+    }
+  };
+
+
+/* =========================================================
+   IMAGE RESOLVER
 ========================================================= */
 
 const resolveCharacterImage =
-  async (characterName) => {
+  async (
+    characterName
+  ) => {
     const normalized =
       normalizeName(
         characterName
@@ -411,20 +525,32 @@ const resolveCharacterImage =
     const stored =
       getStoredImages();
 
-    if (stored[normalized]) {
+    if (
+      stored[
+        normalized
+      ]
+    ) {
       const works =
         await testImage(
-          stored[normalized]
+          stored[
+            normalized
+          ]
         );
 
       if (works) {
-        return stored[normalized];
+        return stored[
+          normalized
+        ];
       }
     }
 
     const searchNames = [
       characterName,
-      characterName
+
+      String(
+        characterName ||
+          ''
+      )
         .replace(
           /\([^)]*\)/g,
           ''
@@ -433,9 +559,14 @@ const resolveCharacterImage =
     ];
 
     for (
-      const searchName of searchNames
+      const searchName of
+      searchNames
     ) {
-      if (!searchName) continue;
+      if (
+        !searchName
+      ) {
+        continue;
+      }
 
       for (
         let attempt = 0;
@@ -449,7 +580,9 @@ const resolveCharacterImage =
 
         if (
           image &&
-          (await testImage(image))
+          (await testImage(
+            image
+          ))
         ) {
           saveStoredImage(
             characterName,
@@ -491,8 +624,9 @@ const resolveCharacterImage =
     return null;
   };
 
+
 /* =========================================================
-   TACTICAL TRAITS
+   DRAFT TACTICAL TRAITS
 ========================================================= */
 
 const getCharacterTraits = (
@@ -564,55 +698,70 @@ const getCharacterTraits = (
   const speedHits =
     speedSignals.filter(
       (word) =>
-        text.includes(word)
+        text.includes(
+          word
+        )
     ).length;
 
   const defenseHits =
     defenseSignals.filter(
       (word) =>
-        text.includes(word)
+        text.includes(
+          word
+        )
     ).length;
 
   const versatilityHits =
     versatilitySignals.filter(
       (word) =>
-        text.includes(word)
+        text.includes(
+          word
+        )
     ).length;
 
-  const power = clamp(
-    (Number(card?.power) || 0) /
-      1000
-  );
+  const power =
+    clamp(
+      (
+        Number(
+          card?.power
+        ) || 0
+      ) / 1000
+    );
 
-  const hax = clamp(
-    card?.hax
-  );
+  const hax =
+    clamp(
+      card?.hax
+    );
 
-  const speed = clamp(
-    52 +
-      speedHits * 8 +
-      hax * 0.18 +
-      power * 0.18
-  );
+  const speed =
+    clamp(
+      52 +
+        speedHits * 8 +
+        hax * 0.18 +
+        power * 0.18
+    );
 
-  const defense = clamp(
-    48 +
-      defenseHits * 9 +
-      power * 0.16 +
-      hax * 0.1
-  );
+  const defense =
+    clamp(
+      48 +
+        defenseHits * 9 +
+        power * 0.16 +
+        hax * 0.10
+    );
 
-  const versatility = clamp(
-    50 +
-      versatilityHits * 8 +
-      hax * 0.25
-  );
+  const versatility =
+    clamp(
+      50 +
+        versatilityHits * 8 +
+        hax * 0.25
+    );
 
-  const battleIQ = clamp(
-    55 +
-      hax * 0.18 +
-      versatility * 0.18
-  );
+  const battleIQ =
+    clamp(
+      55 +
+        hax * 0.18 +
+        versatility * 0.18
+    );
 
   return {
     power,
@@ -624,8 +773,9 @@ const getCharacterTraits = (
   };
 };
 
+
 /* =========================================================
-   COUNTER LOGIC
+   DRAFT COUNTER LOGIC
 ========================================================= */
 
 const getCounterBonus = (
@@ -688,8 +838,9 @@ const getCounterBonus = (
   return bonus;
 };
 
+
 /* =========================================================
-   MAN-TO-MAN JUDGE
+   DRAFT MATCHUP JUDGE
 ========================================================= */
 
 const judgeMatchup = (
@@ -712,36 +863,58 @@ const judgeMatchup = (
   }
 
   const L =
-    getCharacterTraits(left);
+    getCharacterTraits(
+      left
+    );
 
   const R =
-    getCharacterTraits(right);
+    getCharacterTraits(
+      right
+    );
 
   const rolePower =
-    role?.powerMult || 1;
+    role?.powerMult ||
+    1;
 
   const roleHax =
-    role?.haxMult || 1;
+    role?.haxMult ||
+    1;
 
   const leftScore =
-    L.power * rolePower * 0.34 +
-    L.hax * roleHax * 0.22 +
-    L.speed * 0.14 +
-    L.defense * 0.1 +
-    L.versatility * 0.1 +
-    L.battleIQ * 0.1 +
+    L.power *
+      rolePower *
+      0.34 +
+    L.hax *
+      roleHax *
+      0.22 +
+    L.speed *
+      0.14 +
+    L.defense *
+      0.10 +
+    L.versatility *
+      0.10 +
+    L.battleIQ *
+      0.10 +
     getCounterBonus(
       left,
       right
     );
 
   const rightScore =
-    R.power * rolePower * 0.34 +
-    R.hax * roleHax * 0.22 +
-    R.speed * 0.14 +
-    R.defense * 0.1 +
-    R.versatility * 0.1 +
-    R.battleIQ * 0.1 +
+    R.power *
+      rolePower *
+      0.34 +
+    R.hax *
+      roleHax *
+      0.22 +
+    R.speed *
+      0.14 +
+    R.defense *
+      0.10 +
+    R.versatility *
+      0.10 +
+    R.battleIQ *
+      0.10 +
     getCounterBonus(
       right,
       left
@@ -775,30 +948,39 @@ const judgeMatchup = (
       leftScore,
       rightScore,
       margin: diff,
+
       explanation:
-        `${left.name} and ${right.name} are extremely close in this ${role?.name || 'role'} matchup. Their strengths largely cancel each other out.`,
+        `${left.name} and ${right.name} are extremely close in this ${
+          role?.name ||
+          'role'
+        } matchup. Their strengths largely cancel each other out.`,
+
       leftStats: L,
       rightStats: R
     };
   }
 
   const winnerCard =
-    winner === 'left'
+    winner ===
+    'left'
       ? left
       : right;
 
   const loserCard =
-    winner === 'left'
+    winner ===
+    'left'
       ? right
       : left;
 
   const winnerStats =
-    winner === 'left'
+    winner ===
+    'left'
       ? L
       : R;
 
   const loserStats =
-    winner === 'left'
+    winner ===
+    'left'
       ? R
       : L;
 
@@ -873,17 +1055,23 @@ const judgeMatchup = (
     margin: diff,
 
     explanation:
-      `${winnerCard.name} defeats ${loserCard.name} in the ${role?.name || 'role'} matchup because of ${reasons
+      `${winnerCard.name} defeats ${loserCard.name} in the ${
+        role?.name ||
+        'role'
+      } matchup because of ${reasons
         .slice(0, 3)
-        .join(', ')}. ${loserCard.name} still has viable win conditions, but the winning side has the more reliable path to victory.`,
+        .join(', ')}. ${
+        loserCard.name
+      } still has viable win conditions, but the winning side has the more reliable path to victory.`,
 
     leftStats: L,
     rightStats: R
   };
 };
 
+
 /* =========================================================
-   TEAM ANALYSIS
+   DRAFT TEAM ANALYSIS
 ========================================================= */
 
 const analyzeTeam = (
@@ -893,13 +1081,16 @@ const analyzeTeam = (
 ) => {
   const cards =
     selectedRoles
-      .map((role) => ({
-        role,
-        card:
-          team?.[
-            role.id
-          ]
-      }))
+      .map(
+        (role) => ({
+          role,
+
+          card:
+            team?.[
+              role.id
+            ]
+        })
+      )
       .filter(
         (item) =>
           item.card
@@ -981,12 +1172,14 @@ const analyzeTeam = (
       )
     );
 
-  const tagCount = {};
+  const tagCount =
+    {};
 
   cards.forEach(
     ({ card }) => {
       (
-        card.tags || []
+        card.tags ||
+        []
       ).forEach(
         (tag) => {
           const key =
@@ -995,8 +1188,10 @@ const analyzeTeam = (
             ).toLowerCase();
 
           tagCount[key] =
-            (tagCount[key] || 0) +
-            1;
+            (
+              tagCount[key] ||
+              0
+            ) + 1;
         }
       );
     }
@@ -1040,7 +1235,7 @@ const analyzeTeam = (
   const coverage =
     clamp(
       48 +
-        versatility * 0.3 +
+        versatility * 0.30 +
         speed * 0.15 +
         hax * 0.18 +
         roleCoverage * 2
@@ -1088,127 +1283,276 @@ const analyzeTeam = (
   };
 };
 
+
 /* =========================================================
    APP
 ========================================================= */
 
 export default function App() {
-  const [screen, setScreen] =
-    useState('home');
 
-  const [selectedVerses, setSelectedVerses] =
+  /* =======================================================
+     SCREEN / NAVIGATION
+  ======================================================= */
+
+  const [
+    screen,
+    setScreen
+  ] =
+    useState(
+      () =>
+        window.history.state?.screen ||
+        'gamehub'
+    );
+
+
+  const navigateTo = (
+    nextScreen
+  ) => {
+    window.history.pushState(
+      {
+        screen:
+          nextScreen
+      },
+      '',
+      window.location.pathname
+    );
+
+    setScreen(
+      nextScreen
+    );
+  };
+
+
+  useEffect(
+    () => {
+      const handlePopState =
+        (event) => {
+          const previousScreen =
+            event
+              .state
+              ?.screen ||
+            'gamehub';
+
+          setScreen(
+            previousScreen
+          );
+        };
+
+      window.addEventListener(
+        'popstate',
+        handlePopState
+      );
+
+      if (
+        !window.history.state
+          ?.screen
+      ) {
+        window.history.replaceState(
+          {
+            screen:
+              'gamehub'
+          },
+          '',
+          window.location.pathname
+        );
+      }
+
+      return () => {
+        window.removeEventListener(
+          'popstate',
+          handlePopState
+        );
+      };
+    },
+    []
+  );
+
+
+  /* =======================================================
+     DRAFT STATE
+  ======================================================= */
+
+  const [
+    selectedVerses,
+    setSelectedVerses
+  ] =
     useState(
       Object.keys(
         ANIME_VERSES
       )
     );
 
-  const [powerMode, setPowerMode] =
-    useState('relative');
+  const [
+    powerMode,
+    setPowerMode
+  ] =
+    useState(
+      'relative'
+    );
 
-  const [playerNames, setPlayerNames] =
+  const [
+    playerNames,
+    setPlayerNames
+  ] =
     useState([
       'Player 1',
       'Player 2',
       'Player 3'
     ]);
 
-  const [roleCount, setRoleCount] =
+  const [
+    roleCount,
+    setRoleCount
+  ] =
     useState(6);
 
-  /* -------------------------------------------------------
-     CUSTOM ROLE DISPLAY NAMES / ICONS
-     Hidden mechanics remain in EXPANDED_ROLES.
-  ------------------------------------------------------- */
-
-  const [customRoleNames, setCustomRoleNames] =
-    useState({});
-
-  const [customRoleIcons, setCustomRoleIcons] =
-    useState({});
-
-  const selectedRoles = useMemo(() => {
-    return EXPANDED_ROLES
-      .slice(0, roleCount)
-      .map((role) => ({
-        ...role,
-
-        name:
-          customRoleNames[
-            role.id
-          ] ||
-          role.name,
-
-        icon:
-          customRoleIcons[
-            role.id
-          ] ||
-          role.icon
-      }));
-  }, [
-    roleCount,
+  const [
     customRoleNames,
-    customRoleIcons
-  ]);
+    setCustomRoleNames
+  ] =
+    useState({});
 
-  const [maxPasses, setMaxPasses] =
+  const [
+    customRoleIcons,
+    setCustomRoleIcons
+  ] =
+    useState({});
+
+
+  const selectedRoles =
+    useMemo(
+      () =>
+        EXPANDED_ROLES
+          .slice(
+            0,
+            roleCount
+          )
+          .map(
+            (role) => ({
+              ...role,
+
+              name:
+                customRoleNames[
+                  role.id
+                ] ||
+                role.name,
+
+              icon:
+                customRoleIcons[
+                  role.id
+                ] ||
+                role.icon
+            })
+          ),
+      [
+        roleCount,
+        customRoleNames,
+        customRoleIcons
+      ]
+    );
+
+
+  const [
+    maxPasses,
+    setMaxPasses
+  ] =
     useState(3);
 
-  const [playerPasses, setPlayerPasses] =
+  const [
+    playerPasses,
+    setPlayerPasses
+  ] =
     useState({});
 
-  const [teams, setTeams] =
+  const [
+    teams,
+    setTeams
+  ] =
     useState({});
 
-  const [currentTurnIndex, setCurrentTurnIndex] =
+  const [
+    currentTurnIndex,
+    setCurrentTurnIndex
+  ] =
     useState(0);
 
-  const [drawnCard, setDrawnCard] =
+  const [
+    drawnCard,
+    setDrawnCard
+  ] =
     useState(null);
 
-  /*
-    The form is randomly locked.
-    The player never changes this value.
-  */
-  const [drawnFormIndex, setDrawnFormIndex] =
+  const [
+    drawnFormIndex,
+    setDrawnFormIndex
+  ] =
     useState(0);
 
-  const [usedCardIds, setUsedCardIds] =
+  const [
+    usedCardIds,
+    setUsedCardIds
+  ] =
     useState([]);
 
-  const [realImages, setRealImages] =
+  const [
+    realImages,
+    setRealImages
+  ] =
     useState(
       getStoredImages()
     );
 
-  const [imageLoading, setImageLoading] =
+  const [
+    imageLoading,
+    setImageLoading
+  ] =
     useState(false);
 
-  const [imageFailed, setImageFailed] =
+  const [
+    imageFailed,
+    setImageFailed
+  ] =
     useState(false);
 
-  const [aiVerdict, setAiVerdict] =
+  const [
+    aiVerdict,
+    setAiVerdict
+  ] =
     useState(null);
 
-  const [showHelp, setShowHelp] =
+  const [
+    showHelp,
+    setShowHelp
+  ] =
     useState(false);
 
-  const [helpTab, setHelpTab] =
+  const [
+    helpTab,
+    setHelpTab
+  ] =
     useState('basics');
 
-  const [lossQuestion, setLossQuestion] =
+  const [
+    lossQuestion,
+    setLossQuestion
+  ] =
     useState('');
 
-  const [lossAnswer, setLossAnswer] =
+  const [
+    lossAnswer,
+    setLossAnswer
+  ] =
     useState('');
+
 
   const activePlayerName =
     playerNames[
       currentTurnIndex
     ];
 
+
   /* =======================================================
-     ROLE FORGE HELPERS
+     ROLE HELPERS
   ======================================================= */
 
   const updateRoleName = (
@@ -1216,24 +1560,30 @@ export default function App() {
     value
   ) => {
     setCustomRoleNames(
-      (prev) => ({
-        ...prev,
-        [roleId]: value
+      (previous) => ({
+        ...previous,
+
+        [roleId]:
+          value
       })
     );
   };
+
 
   const updateRoleIcon = (
     roleId,
     value
   ) => {
     setCustomRoleIcons(
-      (prev) => ({
-        ...prev,
-        [roleId]: value
+      (previous) => ({
+        ...previous,
+
+        [roleId]:
+          value
       })
     );
   };
+
 
   const applyRolePreset = (
     presetName
@@ -1243,19 +1593,31 @@ export default function App() {
         presetName
       ];
 
-    if (!preset) return;
+    if (!preset) {
+      return;
+    }
 
-    const names = {};
-    const icons = {};
+    const names =
+      {};
+
+    const icons =
+      {};
 
     Object.entries(
       preset
     ).forEach(
-      ([roleId, values]) => {
-        names[roleId] =
+      ([
+        roleId,
+        values
+      ]) => {
+        names[
+          roleId
+        ] =
           values[0];
 
-        icons[roleId] =
+        icons[
+          roleId
+        ] =
           values[1];
       }
     );
@@ -1268,6 +1630,7 @@ export default function App() {
       icons
     );
   };
+
 
   const randomizeRoleNames =
     () => {
@@ -1284,39 +1647,11 @@ export default function App() {
           )
         ];
 
-      const source =
-        ROLE_NAME_PRESETS[
-          randomPreset
-        ];
-
-      const names = {};
-      const icons = {};
-
-      Object.keys(
-        source
-      ).forEach(
-        (roleId) => {
-          const values =
-            source[
-              roleId
-            ];
-
-          names[roleId] =
-            values[0];
-
-          icons[roleId] =
-            values[1];
-        }
-      );
-
-      setCustomRoleNames(
-        names
-      );
-
-      setCustomRoleIcons(
-        icons
+      applyRolePreset(
+        randomPreset
       );
     };
+
 
   const resetRoleNames =
     () => {
@@ -1329,79 +1664,96 @@ export default function App() {
       );
     };
 
+
   /* =======================================================
-     IMAGE LOADING
+     DRAFT IMAGE LOADING
   ======================================================= */
 
-  useEffect(() => {
-    let cancelled = false;
+  useEffect(
+    () => {
+      let cancelled =
+        false;
 
-    const loadArtwork =
-      async () => {
-        if (!drawnCard) return;
+      const loadArtwork =
+        async () => {
+          if (
+            !drawnCard
+          ) {
+            return;
+          }
 
-        const key =
-          normalizeName(
-            drawnCard.name
-          );
+          const key =
+            normalizeName(
+              drawnCard.name
+            );
 
-        if (
-          realImages[key]
-        ) {
-          setImageFailed(
-            false
-          );
+          if (
+            realImages[key]
+          ) {
+            setImageFailed(
+              false
+            );
 
-          return;
-        }
+            return;
+          }
 
-        setImageLoading(
-          true
-        );
-
-        setImageFailed(
-          false
-        );
-
-        const image =
-          await resolveCharacterImage(
-            drawnCard.name
-          );
-
-        if (cancelled)
-          return;
-
-        if (image) {
-          setRealImages(
-            (prev) => ({
-              ...prev,
-              [key]: image
-            })
-          );
-
-          setImageFailed(
-            false
-          );
-        } else {
-          setImageFailed(
+          setImageLoading(
             true
           );
-        }
 
-        setImageLoading(
-          false
-        );
+          setImageFailed(
+            false
+          );
+
+          const image =
+            await resolveCharacterImage(
+              drawnCard.name
+            );
+
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+          if (image) {
+            setRealImages(
+              (previous) => ({
+                ...previous,
+                [key]:
+                  image
+              })
+            );
+
+            setImageFailed(
+              false
+            );
+          } else {
+            setImageFailed(
+              true
+            );
+          }
+
+          setImageLoading(
+            false
+          );
+        };
+
+      loadArtwork();
+
+      return () => {
+        cancelled =
+          true;
       };
+    },
+    [
+      drawnCard
+    ]
+  );
 
-    loadArtwork();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [drawnCard]);
 
   /* =======================================================
-     PLAYERS
+     PLAYER HANDLING
   ======================================================= */
 
   const handleNameChange = (
@@ -1409,7 +1761,9 @@ export default function App() {
     value
   ) => {
     const updated =
-      [...playerNames];
+      [
+        ...playerNames
+      ];
 
     updated[index] =
       value;
@@ -1419,24 +1773,26 @@ export default function App() {
     );
   };
 
-  const handleAddPlayer = () => {
-    if (
-      playerNames.length >=
-      8
-    ) {
-      return;
-    }
 
-    setPlayerNames(
-      [
+  const handleAddPlayer =
+    () => {
+      if (
+        playerNames.length >=
+        8
+      ) {
+        return;
+      }
+
+      setPlayerNames([
         ...playerNames,
+
         `Player ${
           playerNames.length +
           1
         }`
-      ]
-    );
-  };
+      ]);
+    };
+
 
   const handleRemovePlayer =
     () => {
@@ -1454,6 +1810,7 @@ export default function App() {
         )
       );
     };
+
 
   /* =======================================================
      VERSES
@@ -1473,8 +1830,9 @@ export default function App() {
       ) {
         setSelectedVerses(
           selectedVerses.filter(
-            (v) =>
-              v !== verse
+            (item) =>
+              item !==
+              verse
           )
         );
       }
@@ -1488,6 +1846,7 @@ export default function App() {
     }
   };
 
+
   const toggleSelectAllVerses =
     () => {
       const all =
@@ -1500,7 +1859,9 @@ export default function App() {
         all.length
       ) {
         setSelectedVerses(
-          [all[0]]
+          [
+            all[0]
+          ]
         );
       } else {
         setSelectedVerses(
@@ -1509,24 +1870,17 @@ export default function App() {
       }
     };
 
-  /* =======================================================
-     ROLE COUNT
-  ======================================================= */
-
-  const handleRoleCountChange =
-    (count) => {
-      setRoleCount(
-        count
-      );
-    };
 
   /* =======================================================
-     START TOURNAMENT
+     START DRAFT
   ======================================================= */
 
   const startDraft = () => {
-    const newTeams = {};
-    const newPasses = {};
+    const newTeams =
+      {};
+
+    const newPasses =
+      {};
 
     playerNames.forEach(
       (player) => {
@@ -1575,8 +1929,9 @@ export default function App() {
     );
   };
 
+
   /* =======================================================
-     POOL
+     DRAFT POOL
   ======================================================= */
 
   const activeVersePool =
@@ -1588,8 +1943,11 @@ export default function App() {
               verse
             ] || []
         ),
-      [selectedVerses]
+      [
+        selectedVerses
+      ]
     );
+
 
   const availableCards =
     useMemo(
@@ -1606,8 +1964,9 @@ export default function App() {
       ]
     );
 
+
   /* =======================================================
-     DRAW CARD + RANDOM FORM
+     DRAW CARD
   ======================================================= */
 
   const drawCard = () => {
@@ -1615,7 +1974,7 @@ export default function App() {
       !availableCards.length
     ) {
       alert(
-        'No unused characters remain in the selected pool. Select more verses or start a new tournament.'
+        'No unused characters remain in the selected pool.'
       );
 
       return;
@@ -1648,179 +2007,6 @@ export default function App() {
     );
   };
 
-  /* =======================================================
-     ASSIGN
-  ======================================================= */
-
-  const assignCardToRole = (
-    role
-  ) => {
-    if (!drawnCard)
-      return;
-
-    const form =
-      drawnCard.forms[
-        drawnFormIndex
-      ];
-
-    if (!form) return;
-
-    const activePlayer =
-      playerNames[
-        currentTurnIndex
-      ];
-
-    const realImage =
-      realImages[
-        normalizeName(
-          drawnCard.name
-        )
-      ] || null;
-
-    const basePower =
-      powerMode ===
-      'relative'
-        ? form.relPower
-        : form.realPower;
-
-    const updatedTeams = {
-      ...teams,
-
-      [activePlayer]: {
-        ...teams[
-          activePlayer
-        ],
-
-        [role.id]: {
-          id:
-            `${drawnCard.id}_${role.id}`,
-
-          name:
-            drawnCard.name,
-
-          form:
-            form.name,
-
-          img:
-            realImage ||
-            null,
-
-          power:
-            Math.round(
-              basePower *
-                role.powerMult
-            ),
-
-          hax:
-            Math.round(
-              form.hax *
-                role.haxMult
-            ),
-
-          tags:
-            drawnCard.tags ||
-            [],
-
-          verse:
-            selectedVerses.find(
-              (verse) =>
-                (
-                  ANIME_VERSES[
-                    verse
-                  ] || []
-                ).some(
-                  (card) =>
-                    card.id ===
-                    drawnCard.id
-                )
-            ) ||
-            'Unknown',
-
-          formRarity:
-            getFormRarity(
-              form.name,
-              drawnFormIndex
-            ).name
-        }
-      }
-    };
-
-    setTeams(
-      updatedTeams
-    );
-
-    /* Character is permanently used */
-    setUsedCardIds(
-      (prev) =>
-        prev.includes(
-          drawnCard.id
-        )
-          ? prev
-          : [
-              ...prev,
-              drawnCard.id
-            ]
-    );
-
-    setDrawnCard(
-      null
-    );
-
-    nextTurn(
-      updatedTeams
-    );
-  };
-
-  /* =======================================================
-     PASS
-  ======================================================= */
-
-  const handlePass = () => {
-    const remaining =
-      playerPasses[
-        activePlayerName
-      ] || 0;
-
-    if (
-      remaining <= 0
-    ) {
-      return;
-    }
-
-    setPlayerPasses(
-      {
-        ...playerPasses,
-
-        [activePlayerName]:
-          remaining - 1
-      }
-    );
-
-    /* Passed character leaves pool */
-    if (
-      drawnCard
-    ) {
-      setUsedCardIds(
-        (prev) =>
-          prev.includes(
-            drawnCard.id
-          )
-            ? prev
-            : [
-                ...prev,
-                drawnCard.id
-              ]
-      );
-    }
-
-    setDrawnCard(
-      null
-    );
-
-    nextTurn(
-      teams
-    );
-  };
 
   /* =======================================================
      NEXT TURN
@@ -1840,7 +2026,9 @@ export default function App() {
           selectedRoles.length
       );
 
-    if (finished) {
+    if (
+      finished
+    ) {
       calculateWinner(
         latestTeams
       );
@@ -1849,11 +2037,210 @@ export default function App() {
     }
 
     setCurrentTurnIndex(
-      (prev) =>
-        (prev + 1) %
+      (previous) =>
+        (
+          previous +
+          1
+        ) %
         playerNames.length
     );
   };
+
+
+  /* =======================================================
+     ASSIGN CARD
+  ======================================================= */
+
+  const assignCardToRole = (
+    role
+  ) => {
+    if (
+      !drawnCard
+    ) {
+      return;
+    }
+
+    const form =
+      drawnCard.forms[
+        drawnFormIndex
+      ];
+
+    if (
+      !form
+    ) {
+      return;
+    }
+
+    const activePlayer =
+      playerNames[
+        currentTurnIndex
+      ];
+
+    const realImage =
+      realImages[
+        normalizeName(
+          drawnCard.name
+        )
+      ] ||
+      null;
+
+    const basePower =
+      powerMode ===
+      'relative'
+        ? form.relPower
+        : form.realPower;
+
+    const updatedTeams =
+      {
+        ...teams,
+
+        [activePlayer]:
+          {
+            ...teams[
+              activePlayer
+            ],
+
+            [role.id]:
+              {
+                id:
+                  `${drawnCard.id}_${role.id}`,
+
+                name:
+                  drawnCard.name,
+
+                form:
+                  form.name,
+
+                img:
+                  realImage,
+
+                power:
+                  Math.round(
+                    basePower *
+                      role.powerMult
+                  ),
+
+                hax:
+                  Math.round(
+                    form.hax *
+                      role.haxMult
+                  ),
+
+                tags:
+                  drawnCard.tags ||
+                  [],
+
+                verse:
+                  selectedVerses.find(
+                    (verse) =>
+                      (
+                        ANIME_VERSES[
+                          verse
+                        ] ||
+                        []
+                      ).some(
+                        (
+                          card
+                        ) =>
+                          card.id ===
+                          drawnCard.id
+                      )
+                  ) ||
+                  'Unknown',
+
+                formRarity:
+                  getFormRarity(
+                    form.name,
+                    drawnFormIndex
+                  ).name
+              }
+          }
+      };
+
+
+    setTeams(
+      updatedTeams
+    );
+
+
+    setUsedCardIds(
+      (previous) =>
+        previous.includes(
+          drawnCard.id
+        )
+          ? previous
+          : [
+              ...previous,
+              drawnCard.id
+            ]
+    );
+
+
+    setDrawnCard(
+      null
+    );
+
+    nextTurn(
+      updatedTeams
+    );
+  };
+
+
+  /* =======================================================
+     PASS
+  ======================================================= */
+
+  const handlePass =
+    () => {
+      const remaining =
+        playerPasses[
+          activePlayerName
+        ] || 0;
+
+      if (
+        remaining <=
+        0
+      ) {
+        return;
+      }
+
+      setPlayerPasses(
+        {
+          ...playerPasses,
+
+          [activePlayerName]:
+            remaining -
+            1
+        }
+      );
+
+
+      if (
+        drawnCard
+      ) {
+        setUsedCardIds(
+          (previous) =>
+            previous.includes(
+              drawnCard.id
+            )
+              ? previous
+              : [
+                  ...previous,
+                  drawnCard.id
+                ]
+        );
+      }
+
+
+      setDrawnCard(
+        null
+      );
+
+      nextTurn(
+        teams
+      );
+    };
+
 
   /* =======================================================
      LIVE ODDS
@@ -1877,74 +2264,91 @@ export default function App() {
       ) =>
         score +
         Number(
-          card.power || 0
+          card.power ||
+            0
         ) +
         Number(
-          card.hax || 0
+          card.hax ||
+            0
         ) *
           500,
       0
     );
   };
 
+
   const liveOdds =
-    useMemo(() => {
-      const scores =
-        playerNames.map(
-          (player) =>
-            getPlayerScore(
-              player
-            )
-        );
+    useMemo(
+      () => {
+        const scores =
+          playerNames.map(
+            (player) =>
+              getPlayerScore(
+                player
+              )
+          );
 
-      const total =
-        scores.reduce(
-          (a, b) =>
-            a + b,
-          0
-        );
+        const total =
+          scores.reduce(
+            (
+              a,
+              b
+            ) =>
+              a + b,
+            0
+          );
 
-      if (!total) {
+        if (
+          !total
+        ) {
+          return playerNames.map(
+            (player) => ({
+              player,
+
+              odds:
+                Math.round(
+                  100 /
+                    playerNames.length
+                )
+            })
+          );
+        }
+
         return playerNames.map(
-          (player) => ({
+          (
             player,
+            index
+          ) => ({
+            player,
+
             odds:
               Math.round(
-                100 /
-                  playerNames.length
+                (
+                  scores[
+                    index
+                  ] /
+                  total
+                ) *
+                  100
               )
           })
         );
-      }
+      },
+      [
+        playerNames,
+        teams
+      ]
+    );
 
-      return playerNames.map(
-        (
-          player,
-          index
-        ) => ({
-          player,
-          odds:
-            Math.round(
-              (scores[
-                index
-              ] /
-                total) *
-                100
-            )
-        })
-      );
-    }, [
-      playerNames,
-      teams
-    ]);
 
   /* =======================================================
-     FINAL WINNER
+     FINAL TEAM WINNER
   ======================================================= */
 
   const calculateWinner = (
     finalTeams
   ) => {
+
     const analyses =
       playerNames.map(
         (player) =>
@@ -1957,18 +2361,31 @@ export default function App() {
           )
       );
 
+
     const ranked =
-      [...analyses].sort(
+      [
+        ...analyses
+      ].sort(
         (a, b) =>
           b.total -
           a.total
       );
 
+
     const winner =
       ranked[0];
 
+
+    if (
+      !winner
+    ) {
+      return;
+    }
+
+
     const matchupRows =
       [];
+
 
     selectedRoles.forEach(
       (role) => {
@@ -1977,6 +2394,7 @@ export default function App() {
             .map(
               (player) => ({
                 player,
+
                 card:
                   finalTeams[
                     player
@@ -1990,6 +2408,7 @@ export default function App() {
                 item.card
             );
 
+
         if (
           cards.length <
           2
@@ -1997,17 +2416,19 @@ export default function App() {
           return;
         }
 
+
         const first =
           cards[0];
 
+
         for (
-          let i = 1;
-          i <
+          let index = 1;
+          index <
           cards.length;
-          i++
+          index++
         ) {
           const second =
-            cards[i];
+            cards[index];
 
           const result =
             judgeMatchup(
@@ -2016,36 +2437,41 @@ export default function App() {
               role
             );
 
-          matchupRows.push({
-            role,
+          matchupRows.push(
+            {
+              role,
 
-            leftPlayer:
-              first.player,
+              leftPlayer:
+                first.player,
 
-            leftCard:
-              first.card,
+              leftCard:
+                first.card,
 
-            rightPlayer:
-              second.player,
+              rightPlayer:
+                second.player,
 
-            rightCard:
-              second.card,
+              rightCard:
+                second.card,
 
-            ...result
-          });
+              ...result
+            }
+          );
         }
       }
     );
 
+
     const second =
       ranked[1] ||
       null;
+
 
     const margin =
       second
         ? winner.total -
           second.total
         : winner.total;
+
 
     const probability =
       second
@@ -2056,67 +2482,88 @@ export default function App() {
           )
         : 100;
 
-    const reasons = [];
+
+    const reasons =
+      [];
+
 
     if (
       winner.power >
-      (second?.power ||
-        0) + 5
+      (
+        second?.power ||
+        0
+      ) + 5
     ) {
       reasons.push(
         'stronger combat output'
       );
     }
 
+
     if (
       winner.hax >
-      (second?.hax ||
-        0) + 5
+      (
+        second?.hax ||
+        0
+      ) + 5
     ) {
       reasons.push(
         'stronger hax'
       );
     }
 
+
     if (
       winner.speed >
-      (second?.speed ||
-        0) + 5
+      (
+        second?.speed ||
+        0
+      ) + 5
     ) {
       reasons.push(
         'better speed'
       );
     }
 
+
     if (
       winner.defense >
-      (second?.defense ||
-        0) + 5
+      (
+        second?.defense ||
+        0
+      ) + 5
     ) {
       reasons.push(
         'better defense'
       );
     }
 
+
     if (
       winner.synergy >
-      (second?.synergy ||
-        0) + 5
+      (
+        second?.synergy ||
+        0
+      ) + 5
     ) {
       reasons.push(
         'stronger synergy'
       );
     }
 
+
     if (
       winner.coverage >
-      (second?.coverage ||
-        0) + 5
+      (
+        second?.coverage ||
+        0
+      ) + 5
     ) {
       reasons.push(
         'better matchup coverage'
       );
     }
+
 
     if (
       !reasons.length
@@ -2126,49 +2573,71 @@ export default function App() {
       );
     }
 
+
     const explanation =
       `${winner.player} wins because the team was stronger across multiple tactical categories, not simply because of one power number. The biggest advantages were ${reasons
         .slice(0, 4)
-        .join(', ')}.`;
+        .join(
+          ', '
+        )}.`;
 
-    setAiVerdict({
-      winner:
-        winner.player,
 
-      winnerScore:
-        winner.total,
+    setAiVerdict(
+      {
+        winner:
+          winner.player,
 
-      winnerProbability:
-        probability,
+        winnerScore:
+          winner.total,
 
-      ranked,
+        winnerProbability:
+          probability,
 
-      matchupRows,
+        ranked,
 
-      explanation
-    });
+        matchupRows,
+
+        explanation
+      }
+    );
+
 
     setScreen(
       'winner'
     );
 
+
     confetti({
       particleCount:
         220,
-      spread: 100,
+
+      spread:
+        100,
+
       origin: {
-        y: 0.45
+        y:
+          0.45
       }
     });
   };
+
 
   /* =======================================================
      LOSS ANALYZER
   ======================================================= */
 
   const analyzeLoss =
-    (questionOverride = null) => {
-      if (!aiVerdict) return;
+    (
+      questionOverride =
+        null
+    ) => {
+
+      if (
+        !aiVerdict
+      ) {
+        return;
+      }
+
 
       const question =
         (
@@ -2178,8 +2647,10 @@ export default function App() {
           .toLowerCase()
           .trim();
 
+
       const winner =
         aiVerdict.ranked[0];
+
 
       const loser =
         aiVerdict.ranked.find(
@@ -2192,13 +2663,17 @@ export default function App() {
             )
         );
 
-      if (!loser) {
+
+      if (
+        !loser
+      ) {
         setLossAnswer(
           'There is not enough opponent data to analyze the loss.'
         );
 
         return;
       }
+
 
       const weakest =
         [
@@ -2240,6 +2715,7 @@ export default function App() {
             b[1]
         )[0];
 
+
       const lostMatchups =
         aiVerdict.matchupRows.filter(
           (match) => {
@@ -2255,6 +2731,7 @@ export default function App() {
           }
         );
 
+
       if (
         question.includes(
           'matchup'
@@ -2266,6 +2743,7 @@ export default function App() {
           'who'
         )
       ) {
+
         if (
           lostMatchups.length
         ) {
@@ -2292,6 +2770,7 @@ export default function App() {
         return;
       }
 
+
       if (
         question.includes(
           'draft'
@@ -2310,127 +2789,136 @@ export default function App() {
         return;
       }
 
+
       setLossAnswer(
         `${loser.player} lost because the opponent had the stronger combined tactical profile. The weakest category was ${weakest[0]}, while the winning team had the more reliable balance of combat output, abilities, defense and matchup coverage.`
       );
     };
 
+
   /* =======================================================
      HELP CONTENT
   ======================================================= */
 
-  const helpSections = {
-    basics: {
-      title:
-        'How the game works',
+  const helpSections =
+    {
+      basics: {
+        title:
+          'How the game works',
 
-      content: [
-        'Players take turns drawing exactly one random anime character.',
-        'A random form is immediately locked to that character.',
-        'The player cannot select, change or reroll the form.',
-        'The player decides only whether to draft that character or pass it.',
-        'A drafted or passed character leaves the tournament pool permanently.',
-        'The game continues until every player has filled every role.',
-        'The final judge compares both role-to-role battles and the complete teams.'
-      ]
-    },
+        content: [
+          'Players take turns drawing exactly one random anime character.',
+          'A random form is immediately locked to that character.',
+          'The player cannot select, change or reroll the form.',
+          'The player decides only whether to draft that character or pass it.',
+          'A drafted or passed character leaves the tournament pool permanently.',
+          'The game continues until every player has filled every role.',
+          'The final judge compares both role-to-role battles and the complete teams.'
+        ]
+      },
 
-    rarity: {
-      title:
-        'Form rarity',
+      rarity: {
+        title:
+          'Form rarity',
 
-      content: [
-        '⚪ Common — ordinary/base forms.',
-        '🔵 Rare — stronger or upgraded forms.',
-        '🟣 Epic — advanced combat forms.',
-        '🟠 Legendary — major transformations and high-end states.',
-        '🔴 Mythic — exceptional peak, final, god-tier or signature forms.',
-        'Rarity is a fun visual indicator and does not itself decide the winner.'
-      ]
-    },
+        content: [
+          '⚪ Common — ordinary/base forms.',
+          '🔵 Rare — stronger or upgraded forms.',
+          '🟣 Epic — advanced combat forms.',
+          '🟠 Legendary — major transformations and high-end states.',
+          '🔴 Mythic — exceptional peak, final, god-tier or signature forms.',
+          'Rarity is a fun visual indicator and does not itself decide the winner.'
+        ]
+      },
 
-    roles: {
-      title:
-        'Role Forge',
+      roles: {
+        title:
+          'Role Forge',
 
-      content: [
-        'You can rename roles to make your tournament more fun.',
-        'You can also change the role emoji.',
-        'Renaming a role does NOT change its hidden mechanics.',
-        'For example, Tank can be renamed Berserker while keeping the same Tank power and hax multipliers.',
-        'Custom role names are shown throughout the draft and final verdict.',
-        'Presets and random role names are available for quick setup.'
-      ]
-    },
+        content: [
+          'You can rename roles to make your tournament more fun.',
+          'You can also change the role emoji.',
+          'Renaming a role does NOT change its hidden mechanics.',
+          'For example, Tank can be renamed Berserker while keeping the same Tank power and hax multipliers.',
+          'Custom role names are shown throughout the draft and final verdict.',
+          'Presets and random role names are available for quick setup.'
+        ]
+      },
 
-    draft: {
-      title:
-        'Draft rules',
+      draft: {
+        title:
+          'Draft rules',
 
-      content: [
-        '2 to 8 players can participate.',
-        'Every player receives the same number of roles.',
-        'A character can only be drafted once during the tournament.',
-        'The form is randomly selected when that character appears.',
-        'Passing consumes one pass.',
-        'A passed character is removed from the pool.',
-        'No player can reroll or manually select a different form.'
-      ]
-    },
+        content: [
+          '2 to 8 players can participate.',
+          'Every player receives the same number of roles.',
+          'A character can only be drafted once during the tournament.',
+          'The form is randomly selected when that character appears.',
+          'Passing consumes one pass.',
+          'A passed character is removed from the pool.',
+          'No player can reroll or manually select a different form.'
+        ]
+      },
 
-    images: {
-      title:
-        'Character artwork',
+      images: {
+        title:
+          'Character artwork',
 
-      content: [
-        'The app first checks its local image cache.',
-        'If the image is not cached, it tries AniList.',
-        'If AniList fails, it tries Jikan/MyAnimeList.',
-        'Successful artwork is saved in the browser for future draws.',
-        'If both services fail, the character remains fully playable and the app shows an artwork-unavailable state instead of a random unrelated image.'
-      ]
-    },
+        content: [
+          'The app first checks its local image cache.',
+          'If the image is not cached, it tries AniList.',
+          'If AniList fails, it tries Jikan/MyAnimeList.',
+          'Successful artwork is saved in the browser for future draws.',
+          'If both services fail, the character remains fully playable and the app shows an artwork-unavailable state instead of a random unrelated image.'
+        ]
+      },
 
-    power: {
-      title:
-        'Power system',
+      power: {
+        title:
+          'Power system',
 
-      content: [
-        'Verse Relative mode is designed for fair cross-verse competition.',
-        'Cross-Verse Realism uses the realPower values from the database.',
-        'Power is only one part of the final result.',
-        'Speed, hax, defense, versatility, synergy, role fit and counters also affect the verdict.'
-      ]
-    },
+        content: [
+          'Verse Relative mode is designed for fair cross-verse competition.',
+          'Cross-Verse Realism uses the realPower values from the database.',
+          'Power is only one part of the final result.',
+          'Speed, hax, defense, versatility, synergy, role fit and counters also affect the verdict.'
+        ]
+      },
 
-    verdict: {
-      title:
-        'Final verdict',
+      verdict: {
+        title:
+          'Final verdict',
 
-      content: [
-        'First the game compares matching roles: Captain vs Captain, Vice Captain vs Vice Captain, Vanguard vs Vanguard and so on.',
-        'Each matchup uses several tactical categories.',
-        'Second the complete teams are compared together.',
-        'A team may still win overall even after losing one or more individual matchups.',
-        'The final screen explains the major reasons behind the result.'
-      ]
-    },
+        content: [
+          'First the game compares matching roles.',
+          'Each matchup uses several tactical categories.',
+          'Second the complete teams are compared together.',
+          'A team may still win overall even after losing one or more individual matchups.',
+          'The final screen explains the major reasons behind the result.'
+        ]
+      },
 
-    analyzer: {
-      title:
-        'AI Tactician',
+      analyzer: {
+        title:
+          'AI Tactician',
 
-      content: [
-        'The AI Tactician is a local rule-based analysis engine.',
-        'It uses the actual tournament teams and matchup results.',
-        'Players can ask why they lost, which matchup hurt them, or how they could draft better next time.'
-      ]
-    }
-  };
+        content: [
+          'The AI Tactician is a local rule-based analysis engine.',
+          'It uses the actual tournament teams and matchup results.',
+          'Players can ask why they lost, which matchup hurt them, or how they could draft better next time.'
+        ]
+      }
+    };
+
 
   /* =======================================================
-     RENDER
+     GLOBAL HEADER
   ======================================================= */
+
+  const showHeader =
+    screen !==
+    'gamehub';
+
 
   return (
     <div
@@ -2440,104 +2928,325 @@ export default function App() {
           "linear-gradient(to bottom, rgba(4,4,4,0.70), rgba(4,4,4,0.94)), url('/konoha-background.png')"
       }}
     >
+
       {/* ===================================================
-          HEADER
+          GAME HUB
       =================================================== */}
 
-      <header className="border-b border-red-900/50 bg-black/80 backdrop-blur-xl sticky top-0 z-40 px-4 md:px-6 py-3">
+      {screen ===
+        'gamehub' && (
+        <>
+          <header className="border-b border-red-900/50 bg-black/80 backdrop-blur-xl sticky top-0 z-40 px-4 md:px-6 py-3">
 
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+            <div className="max-w-7xl mx-auto flex items-center justify-between">
 
-          <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3">
 
-            <div className="bg-red-600 p-2.5 rounded-xl shadow-lg shadow-red-600/40">
-              <Swords className="w-6 h-6 text-black" />
+                <div className="bg-red-600 p-2.5 rounded-xl">
+                  <Swords className="w-6 h-6 text-black" />
+                </div>
+
+                <div>
+                  <h1 className="text-lg font-black tracking-wider text-red-500 uppercase">
+                    Anime Arena
+                  </h1>
+
+                  <span className="text-[10px] text-neutral-500">
+                    Anime Gaming Hub
+                  </span>
+                </div>
+
+              </div>
+
             </div>
 
-            <div>
-              <h1 className="text-lg md:text-xl font-black tracking-wider text-red-500 uppercase">
-                Anime Draft Arena
-              </h1>
+          </header>
 
-              <span className="text-[10px] text-neutral-400">
-                Fan-Made Anime Team Draft Simulator
-              </span>
-            </div>
 
-          </div>
+          <GameHub
+            onSelectMode={(
+              mode
+            ) => {
 
-          <div className="flex items-center gap-2">
-
-            <button
-              onClick={() =>
-                setShowHelp(true)
+              if (
+                mode ===
+                'draft'
+              ) {
+                navigateTo(
+                  'home'
+                );
               }
-              className="bg-red-950/70 border border-red-800 hover:border-red-500 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2"
-            >
-              <BookOpen className="w-4 h-4" />
-              How To Play
-            </button>
 
-            <a
-              href="https://anilist.co"
-              target="_blank"
-              rel="noreferrer"
-              className="hidden sm:flex bg-neutral-900 border border-neutral-700 px-3 py-2 rounded-xl text-xs items-center gap-1"
-            >
-              <Globe className="w-3 h-3 text-blue-400" />
-              AniList
-            </a>
+              if (
+                mode ===
+                'battle'
+              ) {
+                navigateTo(
+                  'battle'
+                );
+              }
 
-          </div>
-        </div>
-      </header>
+              if (
+                mode ===
+                'tournament'
+              ) {
+                navigateTo(
+                  'tournament'
+                );
+              }
+
+              if (
+                mode ===
+                'auction'
+              ) {
+                navigateTo(
+                  'auction'
+                );
+              }
+
+            }}
+          />
+        </>
+      )}
+
 
       {/* ===================================================
-          HOME
+          BATTLE
       =================================================== */}
 
-      {screen === 'home' && (
+      {screen ===
+        'battle' && (
+        <BattleMode
+          animeVerses={
+            ANIME_VERSES
+          }
+
+          onBack={() =>
+            navigateTo(
+              'gamehub'
+            )
+          }
+        />
+      )}
+
+
+      {/* ===================================================
+          TOURNAMENT
+      =================================================== */}
+
+      {screen ===
+        'tournament' && (
+        <TournamentMode
+          animeVerses={
+            ANIME_VERSES
+          }
+
+          characterPool={
+            Object.values(
+              ANIME_VERSES
+            ).flat()
+          }
+
+          onBack={() =>
+            navigateTo(
+              'gamehub'
+            )
+          }
+
+          onStartTournament={(
+            config
+          ) => {
+            console.log(
+              'Tournament foundation ready:',
+              config
+            );
+          }}
+        />
+      )}
+
+
+      {/* ===================================================
+          AUCTION
+      =================================================== */}
+
+      {screen ===
+        'auction' && (
+        <AuctionMode
+          animeVerses={
+            ANIME_VERSES
+          }
+
+          characterPool={
+            Object.values(
+              ANIME_VERSES
+            ).flat()
+          }
+
+          onBack={() =>
+            navigateTo(
+              'gamehub'
+            )
+          }
+        />
+      )}
+
+
+      {/* ===================================================
+          DRAFT HEADER
+      =================================================== */}
+
+      {showHeader && (
+        <header className="border-b border-red-900/50 bg-black/80 backdrop-blur-xl sticky top-0 z-40 px-4 md:px-6 py-3">
+
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+
+            <div className="flex items-center gap-3">
+
+              <div className="bg-red-600 p-2.5 rounded-xl shadow-lg shadow-red-600/30">
+
+                <Swords className="w-6 h-6 text-black" />
+
+              </div>
+
+              <div>
+
+                <h1 className="text-lg md:text-xl font-black tracking-wider text-red-500 uppercase">
+                  Anime Draft Arena
+                </h1>
+
+                <span className="text-[10px] text-neutral-400">
+                  Fan-Made Anime Team Draft Simulator
+                </span>
+
+              </div>
+
+            </div>
+
+
+            <div className="flex items-center gap-2">
+
+              <button
+                onClick={() =>
+                  setShowHelp(
+                    true
+                  )
+                }
+                className="bg-red-950/70 border border-red-800 hover:border-red-500 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2"
+              >
+                <BookOpen className="w-4 h-4" />
+                How To Play
+              </button>
+
+
+              <button
+                onClick={() =>
+                  navigateTo(
+                    'gamehub'
+                  )
+                }
+                className="bg-neutral-900 border border-neutral-700 px-3 py-2 rounded-xl text-xs"
+              >
+                Game Hub
+              </button>
+
+
+              <a
+                href="https://anilist.co"
+                target="_blank"
+                rel="noreferrer"
+                className="hidden sm:flex bg-neutral-900 border border-neutral-700 px-3 py-2 rounded-xl text-xs items-center gap-1"
+              >
+                <Globe className="w-3 h-3 text-blue-400" />
+                AniList
+              </a>
+
+            </div>
+
+          </div>
+
+        </header>
+      )}
+
+
+      {/* ===================================================
+          DRAFT HOME
+      =================================================== */}
+
+      {screen ===
+        'home' && (
         <div className="relative z-10 max-w-6xl mx-auto px-4">
+
+          <button
+            onClick={() =>
+              navigateTo(
+                'gamehub'
+              )
+            }
+            className="mt-6 text-xs text-neutral-400 hover:text-white flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Game Hub
+          </button>
+
 
           <section className="min-h-[520px] flex items-center justify-center py-12">
 
             <div className="text-center max-w-4xl">
 
               <div className="inline-flex items-center gap-2 bg-red-950/80 border border-red-700 text-red-300 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest">
+
                 <Flame className="w-4 h-4" />
+
                 Build Your Ultimate Anime Team
+
               </div>
+
 
               <h2 className="text-5xl md:text-7xl font-black uppercase tracking-tight mt-6">
 
                 Anime
+
                 <span className="text-red-500">
                   {' '}Draft{' '}
                 </span>
+
                 Arena
 
               </h2>
 
+
               <p className="max-w-2xl mx-auto text-neutral-300 mt-5 text-sm md:text-lg leading-relaxed">
-                Draft characters. Receive a random form.
-                Build your team. Then let the tactical judge
-                determine who actually built the stronger roster.
+
+                Draft characters.
+                Receive a random form.
+                Build your team.
+                Then let the tactical judge
+                determine who built the stronger roster.
+
               </p>
+
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-8">
 
                 <div className="bg-black/75 border border-neutral-800 rounded-2xl p-4">
+
                   <Users className="w-5 h-5 text-red-500 mx-auto mb-2" />
+
                   <div className="text-xl font-black">
                     2–8
                   </div>
+
                   <div className="text-[10px] text-neutral-500 uppercase font-bold">
                     Players
                   </div>
+
                 </div>
 
+
                 <div className="bg-black/75 border border-neutral-800 rounded-2xl p-4">
+
                   <Sparkles className="w-5 h-5 text-red-500 mx-auto mb-2" />
+
                   <div className="text-xl font-black">
                     {
                       Object.keys(
@@ -2545,48 +3254,69 @@ export default function App() {
                       ).length
                     }
                   </div>
+
                   <div className="text-[10px] text-neutral-500 uppercase font-bold">
                     Verses
                   </div>
+
                 </div>
 
+
                 <div className="bg-black/75 border border-neutral-800 rounded-2xl p-4">
+
                   <Crown className="w-5 h-5 text-red-500 mx-auto mb-2" />
+
                   <div className="text-xl font-black">
                     {
                       EXPANDED_ROLES.length
                     }
                   </div>
+
                   <div className="text-[10px] text-neutral-500 uppercase font-bold">
                     Roles
                   </div>
+
                 </div>
 
+
                 <div className="bg-black/75 border border-neutral-800 rounded-2xl p-4">
+
                   <Brain className="w-5 h-5 text-red-500 mx-auto mb-2" />
+
                   <div className="text-xl font-black">
                     AI
                   </div>
+
                   <div className="text-[10px] text-neutral-500 uppercase font-bold">
                     Tactical Judge
                   </div>
+
                 </div>
 
               </div>
 
-              <button
-                onClick={() =>
-                  setScreen('setup')
-                }
-                className="mt-9 bg-red-600 hover:bg-red-500 text-black font-black px-10 py-4 rounded-2xl uppercase shadow-xl shadow-red-600/30 flex items-center gap-2 mx-auto"
-              >
-                Start Tournament
-                <ChevronRight className="w-5 h-5" />
-              </button>
 
               <button
                 onClick={() =>
-                  setShowHelp(true)
+                  setScreen(
+                    'setup'
+                  )
+                }
+                className="mt-9 bg-red-600 hover:bg-red-500 text-black font-black px-10 py-4 rounded-2xl uppercase shadow-xl shadow-red-600/30 flex items-center gap-2 mx-auto"
+              >
+
+                Start Tournament
+
+                <ChevronRight className="w-5 h-5" />
+
+              </button>
+
+
+              <button
+                onClick={() =>
+                  setShowHelp(
+                    true
+                  )
                 }
                 className="mt-3 text-xs text-neutral-400 hover:text-white underline"
               >
@@ -2596,6 +3326,7 @@ export default function App() {
             </div>
 
           </section>
+
 
           <section className="grid md:grid-cols-3 gap-5 pb-10">
 
@@ -2608,10 +3339,12 @@ export default function App() {
               </h3>
 
               <p className="text-sm text-neutral-400 mt-2 leading-relaxed">
-                Character and form are random. You can't secretly pick the strongest transformation.
+                Character and form are random.
+                You cannot secretly pick the strongest transformation.
               </p>
 
             </div>
+
 
             <div className="bg-black/75 border border-red-900/50 rounded-3xl p-6">
 
@@ -2622,10 +3355,13 @@ export default function App() {
               </h3>
 
               <p className="text-sm text-neutral-400 mt-2 leading-relaxed">
-                Rename Tank to Berserker, Captain to Emperor, or invent your own style.
+                Rename Tank to Berserker,
+                Captain to Emperor,
+                or invent your own style.
               </p>
 
             </div>
+
 
             <div className="bg-black/75 border border-red-900/50 rounded-3xl p-6">
 
@@ -2642,27 +3378,33 @@ export default function App() {
             </div>
 
           </section>
+
         </div>
       )}
 
+
       {/* ===================================================
-          SETUP
+          DRAFT SETUP
       =================================================== */}
 
-      {screen === 'setup' && (
+      {screen ===
+        'setup' && (
         <div className="relative z-10 max-w-5xl mx-auto mt-8 px-4">
 
           <div className="bg-black/85 backdrop-blur-xl border border-red-900/50 rounded-3xl p-6 md:p-8 shadow-2xl">
 
             <button
               onClick={() =>
-                setScreen('home')
+                setScreen(
+                  'home'
+                )
               }
               className="text-xs text-neutral-400 hover:text-white flex items-center gap-1 mb-5"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Home
             </button>
+
 
             <div className="text-center mb-8">
 
@@ -2684,6 +3426,7 @@ export default function App() {
 
             </div>
 
+
             {/* PLAYERS */}
 
             <div className="bg-neutral-950/80 p-5 rounded-2xl border border-neutral-800 mb-5">
@@ -2692,8 +3435,13 @@ export default function App() {
 
                 <span className="text-sm font-bold flex items-center gap-2">
                   <Users className="w-4 h-4 text-red-500" />
-                  Players ({playerNames.length}/8)
+                  Players (
+                  {
+                    playerNames.length
+                  }
+                  /8)
                 </span>
+
 
                 <div className="flex gap-2">
 
@@ -2702,19 +3450,22 @@ export default function App() {
                       handleRemovePlayer
                     }
                     disabled={
-                      playerNames.length <= 2
+                      playerNames.length <=
+                      2
                     }
                     className="bg-neutral-800 disabled:opacity-30 px-3 py-2 rounded-lg font-bold text-xs"
                   >
                     − Remove
                   </button>
 
+
                   <button
                     onClick={
                       handleAddPlayer
                     }
                     disabled={
-                      playerNames.length >= 8
+                      playerNames.length >=
+                      8
                     }
                     className="bg-red-600 disabled:opacity-30 text-black px-3 py-2 rounded-lg font-bold text-xs"
                   >
@@ -2722,28 +3473,40 @@ export default function App() {
                   </button>
 
                 </div>
+
               </div>
+
 
               <div className="grid md:grid-cols-2 gap-3">
 
                 {playerNames.map(
-                  (name, index) => (
+                  (
+                    name,
+                    index
+                  ) => (
                     <div
-                      key={index}
+                      key={
+                        index
+                      }
                       className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 p-2 rounded-xl"
                     >
 
                       <span className="text-xs font-bold text-red-500 w-12">
-                        P{index + 1}
+                        P
+                        {index + 1}
                       </span>
 
                       <input
                         type="text"
-                        value={name}
-                        onChange={(e) =>
+                        value={
+                          name
+                        }
+                        onChange={(
+                          event
+                        ) =>
                           handleNameChange(
                             index,
-                            e.target.value
+                            event.target.value
                           )
                         }
                         className="bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white font-bold w-full outline-none focus:border-red-500"
@@ -2754,7 +3517,9 @@ export default function App() {
                 )}
 
               </div>
+
             </div>
+
 
             {/* VERSES */}
 
@@ -2763,9 +3528,13 @@ export default function App() {
               <div className="flex flex-wrap justify-between items-center gap-3 mb-3">
 
                 <span className="text-sm font-bold flex items-center gap-2">
+
                   <Sparkles className="w-4 h-4 text-red-500" />
+
                   Anime Verse Pool
+
                 </span>
+
 
                 <button
                   onClick={
@@ -2773,6 +3542,7 @@ export default function App() {
                   }
                   className="text-xs font-bold bg-neutral-800 px-3 py-2 rounded-lg text-red-400 flex items-center gap-1"
                 >
+
                   {
                     selectedVerses.length ===
                     Object.keys(
@@ -2792,9 +3562,11 @@ export default function App() {
                       ? 'Deselect All'
                       : 'Select All'
                   }
+
                 </button>
 
               </div>
+
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-72 overflow-y-auto pr-1">
 
@@ -2825,12 +3597,17 @@ export default function App() {
                               : 'bg-neutral-900 border-neutral-800 text-neutral-500'
                           }`}
                         >
-                          {selected
-                            ? '✓ '
-                            : '+ '}
+
+                          {
+                            selected
+                              ? '✓ '
+                              : '+ '
+                          }
+
                           {
                             verse
                           }
+
                         </button>
                       );
                     }
@@ -2839,27 +3616,37 @@ export default function App() {
 
               </div>
 
+
               <p className="text-[10px] text-neutral-500 mt-3">
+
                 {
                   selectedVerses.length
-                } of{' '}
+                }
+                {' '}of{' '}
                 {
                   Object.keys(
                     ANIME_VERSES
                   ).length
-                } selected.
+                }
+                {' '}selected.
+
               </p>
 
             </div>
+
 
             {/* POWER */}
 
             <div className="bg-neutral-950/80 p-5 rounded-2xl border border-neutral-800 mb-5">
 
               <label className="text-sm font-bold mb-3 flex items-center gap-2">
+
                 <Scale className="w-4 h-4 text-red-500" />
+
                 Power Balance System
+
               </label>
+
 
               <div className="grid md:grid-cols-2 gap-3">
 
@@ -2870,11 +3657,13 @@ export default function App() {
                     )
                   }
                   className={`p-4 rounded-xl border text-left ${
-                    powerMode === 'relative'
+                    powerMode ===
+                    'relative'
                       ? 'bg-red-950/60 border-red-600'
                       : 'bg-neutral-900 border-neutral-800'
                   }`}
                 >
+
                   <div className="font-black text-sm">
                     ⚖️ Verse Relative
                   </div>
@@ -2882,7 +3671,9 @@ export default function App() {
                   <p className="text-[10px] text-neutral-500 mt-1">
                     Fair cross-verse competition.
                   </p>
+
                 </button>
+
 
                 <button
                   onClick={() =>
@@ -2891,11 +3682,13 @@ export default function App() {
                     )
                   }
                   className={`p-4 rounded-xl border text-left ${
-                    powerMode === 'realistic'
+                    powerMode ===
+                    'realistic'
                       ? 'bg-red-950/60 border-red-600'
                       : 'bg-neutral-900 border-neutral-800'
                   }`}
                 >
+
                   <div className="font-black text-sm">
                     💥 Cross-Verse Realism
                   </div>
@@ -2903,14 +3696,19 @@ export default function App() {
                   <p className="text-[10px] text-neutral-500 mt-1">
                     Uses realPower values.
                   </p>
+
                 </button>
 
               </div>
+
             </div>
+
 
             <button
               onClick={() =>
-                setScreen('config')
+                setScreen(
+                  'config'
+                )
               }
               className="w-full bg-red-600 hover:bg-red-500 text-black font-black py-4 rounded-2xl uppercase shadow-lg shadow-red-600/30"
             >
@@ -2918,21 +3716,26 @@ export default function App() {
             </button>
 
           </div>
+
         </div>
       )}
 
+
       {/* ===================================================
-          ROLE CONFIG + ROLE FORGE
+          CONFIG
       =================================================== */}
 
-      {screen === 'config' && (
+      {screen ===
+        'config' && (
         <div className="relative z-10 max-w-5xl mx-auto mt-8 px-4">
 
           <div className="bg-black/85 backdrop-blur-xl border border-red-900/50 rounded-3xl p-6 md:p-8 shadow-2xl">
 
             <button
               onClick={() =>
-                setScreen('setup')
+                setScreen(
+                  'setup'
+                )
               }
               className="text-xs text-neutral-400 hover:text-white flex items-center gap-1 mb-5"
             >
@@ -2940,9 +3743,11 @@ export default function App() {
               Back to Setup
             </button>
 
+
             <div className="flex flex-wrap justify-between items-start gap-4">
 
               <div>
+
                 <h2 className="text-3xl font-black">
                   Configure Team
                 </h2>
@@ -2950,9 +3755,12 @@ export default function App() {
                 <p className="text-sm text-neutral-500 mt-2">
                   Make the team roles yours.
                 </p>
+
               </div>
 
+
               <div className="bg-red-950/60 border border-red-800 rounded-xl px-4 py-2">
+
                 <div className="text-[9px] text-red-400 font-bold uppercase">
                   Fun Mode
                 </div>
@@ -2960,9 +3768,11 @@ export default function App() {
                 <div className="text-sm font-black">
                   Role Forge
                 </div>
+
               </div>
 
             </div>
+
 
             {/* CARDS PER PLAYER */}
 
@@ -2975,10 +3785,13 @@ export default function App() {
                 </span>
 
                 <span className="text-red-500 font-black">
-                  {roleCount}
+                  {
+                    roleCount
+                  }
                 </span>
 
               </div>
+
 
               <input
                 type="range"
@@ -2992,18 +3805,25 @@ export default function App() {
                 value={
                   roleCount
                 }
-                onChange={(e) =>
-                  handleRoleCountChange(
+                onChange={(
+                  event
+                ) =>
+                  setRoleCount(
                     Number(
-                      e.target.value
+                      event.target.value
                     )
                   )
                 }
                 className="w-full accent-red-600"
               />
 
+
               <div className="flex justify-between text-[9px] text-neutral-600 mt-1">
-                <span>6</span>
+
+                <span>
+                  6
+                </span>
+
                 <span>
                   {
                     Math.min(
@@ -3012,9 +3832,11 @@ export default function App() {
                     )
                   }
                 </span>
+
               </div>
 
             </div>
+
 
             {/* ROLE FORGE */}
 
@@ -3023,73 +3845,76 @@ export default function App() {
               <div className="flex flex-wrap justify-between items-center gap-3">
 
                 <div className="flex items-center gap-2">
+
                   <Wand2 className="w-5 h-5 text-red-500" />
 
                   <div>
+
                     <h3 className="font-black">
                       Role Forge
                     </h3>
 
                     <p className="text-[10px] text-neutral-500">
-                      Rename roles without changing their hidden mechanics.
+                      Rename roles without changing hidden mechanics.
                     </p>
+
                   </div>
+
                 </div>
+
 
                 <div className="flex flex-wrap gap-2">
 
                   <button
-                    onClick={randomizeRoleNames}
+                    onClick={
+                      randomizeRoleNames
+                    }
                     className="bg-red-600 hover:bg-red-500 text-black px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2"
                   >
+
                     <Shuffle className="w-4 h-4" />
+
                     Randomize
+
                   </button>
 
+
+                  {[
+                    'Shonen',
+                    'Dark',
+                    'RPG'
+                  ].map(
+                    (preset) => (
+                      <button
+                        key={
+                          preset
+                        }
+                        onClick={() =>
+                          applyRolePreset(
+                            preset
+                          )
+                        }
+                        className="bg-neutral-800 hover:bg-neutral-700 px-3 py-2 rounded-xl text-xs font-bold"
+                      >
+                        {preset}
+                      </button>
+                    )
+                  )}
+
+
                   <button
-                    onClick={() =>
-                      applyRolePreset(
-                        'Shonen'
-                      )
+                    onClick={
+                      resetRoleNames
                     }
                     className="bg-neutral-800 hover:bg-neutral-700 px-3 py-2 rounded-xl text-xs font-bold"
                   >
-                    Shonen
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      applyRolePreset(
-                        'Dark'
-                      )
-                    }
-                    className="bg-neutral-800 hover:bg-neutral-700 px-3 py-2 rounded-xl text-xs font-bold"
-                  >
-                    Dark
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      applyRolePreset(
-                        'RPG'
-                      )
-                    }
-                    className="bg-neutral-800 hover:bg-neutral-700 px-3 py-2 rounded-xl text-xs font-bold"
-                  >
-                    RPG
-                  </button>
-
-                  <button
-                    onClick={resetRoleNames}
-                    className="bg-neutral-800 hover:bg-neutral-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1"
-                  >
-                    <ResetIcon className="w-3.5 h-3.5" />
                     Reset
                   </button>
 
                 </div>
 
               </div>
+
 
               <div className="grid md:grid-cols-2 gap-3 mt-5">
 
@@ -3113,6 +3938,7 @@ export default function App() {
                           </div>
 
                           <div>
+
                             <div className="text-[9px] text-neutral-600 uppercase font-black">
                               Internal Role
                             </div>
@@ -3120,33 +3946,41 @@ export default function App() {
                             <div className="text-xs text-neutral-400">
                               {
                                 EXPANDED_ROLES.find(
-                                  (r) =>
-                                    r.id ===
+                                  (item) =>
+                                    item.id ===
                                     role.id
                                 )?.name
                               }
                             </div>
+
                           </div>
 
                         </div>
 
+
                         <div className="text-[9px] text-red-400 font-bold">
+
                           P ×
                           {
                             role.powerMult
                           }
+
                           {'  '}
+
                           H ×
                           {
                             role.haxMult
                           }
+
                         </div>
 
                       </div>
 
+
                       <div className="grid grid-cols-[56px_1fr] gap-2">
 
                         <div>
+
                           <label className="text-[9px] text-neutral-500 font-bold block mb-1">
                             ICON
                           </label>
@@ -3158,18 +3992,25 @@ export default function App() {
                               ] ||
                               role.icon
                             }
-                            maxLength={3}
-                            onChange={(e) =>
+                            maxLength={
+                              3
+                            }
+                            onChange={(
+                              event
+                            ) =>
                               updateRoleIcon(
                                 role.id,
-                                e.target.value
+                                event.target.value
                               )
                             }
                             className="w-full text-center bg-black border border-neutral-700 focus:border-red-500 rounded-xl px-2 py-2 text-lg outline-none"
                           />
+
                         </div>
 
+
                         <div>
+
                           <label className="text-[9px] text-neutral-500 font-bold block mb-1">
                             DISPLAY NAME
                           </label>
@@ -3181,18 +4022,20 @@ export default function App() {
                               ] ||
                               role.name
                             }
-                            maxLength={22}
-                            onChange={(e) =>
+                            maxLength={
+                              22
+                            }
+                            onChange={(
+                              event
+                            ) =>
                               updateRoleName(
                                 role.id,
-                                e.target.value
+                                event.target.value
                               )
-                            }
-                            placeholder={
-                              role.name
                             }
                             className="w-full bg-black border border-neutral-700 focus:border-red-500 rounded-xl px-3 py-2 text-sm font-black outline-none"
                           />
+
                         </div>
 
                       </div>
@@ -3203,21 +4046,26 @@ export default function App() {
 
               </div>
 
+
               <div className="mt-4 bg-black/60 border border-neutral-800 rounded-2xl p-4">
 
                 <div className="flex items-center gap-2 text-xs font-black text-red-400">
+
                   <Shield className="w-4 h-4" />
+
                   Hidden mechanics stay locked
+
                 </div>
 
                 <p className="text-[10px] text-neutral-500 mt-2 leading-5">
-                  Renaming “Tank” to “Berserker” changes what players see,
-                  but the Tank role's original power/hax multipliers remain unchanged.
+                  Renaming a role changes what players see,
+                  but its original power and hax multipliers remain unchanged.
                 </p>
 
               </div>
 
             </div>
+
 
             {/* PASSES */}
 
@@ -3236,6 +4084,7 @@ export default function App() {
                 </span>
 
               </div>
+
 
               <div className="grid grid-cols-5 gap-2 mt-4">
 
@@ -3268,6 +4117,7 @@ export default function App() {
 
             </div>
 
+
             <button
               onClick={
                 startDraft
@@ -3278,14 +4128,17 @@ export default function App() {
             </button>
 
           </div>
+
         </div>
       )}
 
+
       {/* ===================================================
-          DRAFT
+          DRAFT SCREEN
       =================================================== */}
 
-      {screen === 'draft' && (
+      {screen ===
+        'draft' && (
         <div className="relative z-10 max-w-7xl mx-auto mt-6 px-4">
 
           <div className="bg-black/85 backdrop-blur-xl border border-red-900/40 rounded-2xl p-4 mb-6">
@@ -3293,18 +4146,26 @@ export default function App() {
             <div className="flex justify-between items-center mb-3">
 
               <h4 className="text-xs font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
+
                 <Zap className="w-4 h-4" />
+
                 Live Tactical Probability
+
               </h4>
 
+
               <span className="text-[10px] text-neutral-500">
-                Turn:{' '}
+
+                Turn:
+                {' '}
                 {
                   activePlayerName
                 }
+
               </span>
 
             </div>
+
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
 
@@ -3318,6 +4179,7 @@ export default function App() {
                   >
 
                     <div className="flex justify-between text-xs font-bold">
+
                       <span className="truncate">
                         {
                           item.player
@@ -3329,14 +4191,17 @@ export default function App() {
                           item.odds
                         }%
                       </span>
+
                     </div>
+
 
                     <div className="mt-2 h-1.5 bg-neutral-800 rounded-full overflow-hidden">
 
                       <div
                         className="h-full bg-red-600"
                         style={{
-                          width: `${item.odds}%`
+                          width:
+                            `${item.odds}%`
                         }}
                       />
 
@@ -3347,7 +4212,9 @@ export default function App() {
               )}
 
             </div>
+
           </div>
+
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-8">
 
@@ -3374,20 +4241,26 @@ export default function App() {
                     </h3>
 
                     <span className="text-[10px] text-neutral-400">
+
                       {
                         Object.keys(
                           teams[
                             player
-                          ] || {}
+                          ] ||
+                            {}
                         ).length
                       }
+
                       /
+
                       {
                         selectedRoles.length
                       }
+
                     </span>
 
                   </div>
+
 
                   <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
 
@@ -3415,6 +4288,7 @@ export default function App() {
                               }
                             </span>
 
+
                             {card ? (
                               <>
 
@@ -3429,6 +4303,7 @@ export default function App() {
                                     className="w-8 h-8 rounded-lg object-cover border border-neutral-700"
                                   />
                                 )}
+
 
                                 <div className="overflow-hidden flex-1">
 
@@ -3446,10 +4321,13 @@ export default function App() {
 
                                 </div>
 
+
                                 <span className="text-[10px] font-black bg-red-950 text-red-400 px-2 py-1 rounded-md">
-                                  {Number(
-                                    card.power
-                                  ).toLocaleString()}
+                                  {
+                                    Number(
+                                      card.power
+                                    ).toLocaleString()
+                                  }
                                 </span>
 
                               </>
@@ -3457,7 +4335,8 @@ export default function App() {
                               <span className="text-xs text-neutral-600">
                                 {
                                   role.name
-                                } Slot
+                                }
+                                {' '}Slot
                               </span>
                             )}
 
@@ -3467,11 +4346,13 @@ export default function App() {
                     )}
 
                   </div>
+
                 </div>
               )
             )}
 
           </div>
+
 
           <div className="text-center">
 
@@ -3481,22 +4362,55 @@ export default function App() {
               }
               className="bg-red-600 hover:bg-red-500 text-black font-black px-12 py-5 rounded-2xl text-lg uppercase shadow-lg shadow-red-600/30"
             >
+
               {
                 activePlayerName
               }
               's Draw Card
+
             </button>
 
+
             <p className="text-[10px] text-neutral-500 mt-3">
+
               {
                 availableCards.length
-              } unused characters remain
+              }
+              {' '}unused characters remain
+
             </p>
 
           </div>
 
+          <AIDraftTactician
+  playerNames={
+    playerNames
+  }
+
+  teams={
+    teams
+  }
+
+  selectedRoles={
+    selectedRoles
+  }
+
+  activePlayerName={
+    activePlayerName
+  }
+
+  availableCards={
+    availableCards
+  }
+
+  liveOdds={
+    liveOdds
+  }
+/>
+
         </div>
       )}
+
 
       {/* ===================================================
           DRAW CARD MODAL
@@ -3508,13 +4422,15 @@ export default function App() {
           <div className="bg-neutral-900 border-2 border-red-600 rounded-3xl p-6 max-w-md w-full text-center shadow-2xl max-h-[95vh] overflow-y-auto">
 
             <span className="text-xs font-black text-red-500 uppercase tracking-widest">
+
               {
                 activePlayerName
               }
+
               's Turn
+
             </span>
 
-            {/* ARTWORK */}
 
             <div className="mt-4">
 
@@ -3564,23 +4480,13 @@ export default function App() {
                   </div>
                 )}
 
-                {realImages[
-                  normalizeName(
-                    drawnCard.name
-                  )
-                ] && (
-                  <div className="absolute top-2 right-2 bg-green-600 text-black px-2 py-1 rounded-full text-[9px] font-black">
-                    AniList ✓
-                  </div>
-                )}
-
               </div>
 
             </div>
 
-            {/* RARITY + RANDOM FORM */}
 
             {(() => {
+
               const pulledForm =
                 drawnCard.forms[
                   drawnFormIndex
@@ -3607,14 +4513,21 @@ export default function App() {
 
                     </div>
 
+
                     <div
                       className={`inline-flex items-center gap-1 border rounded-full px-3 py-2 text-[10px] font-black ${rarity.className}`}
                     >
-                      {rarity.icon}{' '}
-                      {rarity.name}
+                      {
+                        rarity.icon
+                      }
+                      {' '}
+                      {
+                        rarity.name
+                      }
                     </div>
 
                   </div>
+
 
                   <div className="mt-3 bg-black border border-neutral-800 rounded-2xl p-4">
 
@@ -3639,11 +4552,13 @@ export default function App() {
               );
             })()}
 
+
             <h3 className="text-2xl font-black mt-5">
               {
                 drawnCard.name
               }
             </h3>
+
 
             <div className="flex flex-wrap justify-center gap-2 mt-2">
 
@@ -3665,53 +4580,65 @@ export default function App() {
 
             </div>
 
-            {/* STATS */}
 
             <div className="my-4 bg-neutral-950 py-3 px-4 rounded-xl border border-neutral-800 grid grid-cols-2 gap-3 text-xs font-bold">
 
               <div>
+
                 Power
 
                 <div className="text-red-500 text-lg">
-                  {Number(
-                    powerMode ===
+
+                  {
+                    Number(
+                      powerMode ===
                       'relative'
-                      ? drawnCard
-                          .forms[
-                            drawnFormIndex
-                          ]
-                          ?.relPower
-                      : drawnCard
-                          .forms[
-                            drawnFormIndex
-                          ]
-                          ?.realPower
-                  ).toLocaleString()}
+                        ? drawnCard
+                            .forms[
+                              drawnFormIndex
+                            ]
+                            ?.relPower
+                        : drawnCard
+                            .forms[
+                              drawnFormIndex
+                            ]
+                            ?.realPower
+                    ).toLocaleString()
+                  }
+
                 </div>
 
               </div>
 
+
               <div>
+
                 Hax
 
                 <div className="text-red-500 text-lg">
+
                   {
                     drawnCard
                       .forms[
                         drawnFormIndex
                       ]
-                      ?.hax || 0
+                      ?.hax ||
+                    0
                   }
+
                   /100
+
                 </div>
 
               </div>
 
             </div>
 
+
             <p className="text-xs font-bold text-neutral-400 mb-2">
               Assign Character To Role
             </p>
+
 
             <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto mb-4">
 
@@ -3742,18 +4669,24 @@ export default function App() {
                       }
                       className="bg-neutral-950 hover:bg-red-950 border border-neutral-800 disabled:opacity-20 p-3 rounded-xl text-xs font-bold"
                     >
+
                       {
                         role.icon
-                      }{' '}
+                      }
+
+                      {' '}
+
                       {
                         role.name
                       }
+
                     </button>
                   );
                 }
               )}
 
             </div>
+
 
             <button
               onClick={
@@ -3768,18 +4701,24 @@ export default function App() {
               }
               className="w-full bg-neutral-800 hover:bg-neutral-700 disabled:opacity-30 py-3 rounded-xl text-xs font-bold"
             >
-              Pass Card (
+
+              Pass Card
+              {' '}
+              (
               {
                 playerPasses[
                   activePlayerName
                 ] || 0
-              }{' '}
-              Left)
+              }
+              {' '}Left)
+
             </button>
 
           </div>
+
         </div>
       )}
+
 
       {/* ===================================================
           WINNER
@@ -3810,22 +4749,27 @@ export default function App() {
                   Tactical Judge Verdict
                 </p>
 
+
                 <div className="inline-flex items-center gap-2 mt-5 bg-red-950 border border-red-700 rounded-full px-5 py-2">
 
                   <Brain className="w-4 h-4 text-red-400" />
 
                   <span className="text-sm font-black text-red-300">
+
                     {
                       Math.round(
                         aiVerdict.winnerProbability
                       )
                     }
+
                     % Estimated Advantage
+
                   </span>
 
                 </div>
 
               </div>
+
 
               <div className="mt-8 bg-neutral-950 border border-neutral-800 rounded-2xl p-5">
 
@@ -3851,7 +4795,6 @@ export default function App() {
 
               </div>
 
-              {/* TEAM ANALYSIS */}
 
               <div className="mt-8">
 
@@ -3865,12 +4808,11 @@ export default function App() {
 
                 </div>
 
+
                 <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
 
                   {aiVerdict.ranked.map(
-                    (
-                      team
-                    ) => (
+                    (team) => (
                       <div
                         key={
                           team.player
@@ -3891,6 +4833,7 @@ export default function App() {
                             }
                           </h4>
 
+
                           {team.player ===
                             aiVerdict.winner && (
                             <span className="text-[9px] bg-red-600 text-black px-2 py-1 rounded-full font-black">
@@ -3899,6 +4842,7 @@ export default function App() {
                           )}
 
                         </div>
+
 
                         <div className="space-y-3">
 
@@ -3962,14 +4906,16 @@ export default function App() {
 
                                 </div>
 
+
                                 <div className="h-1.5 bg-neutral-800 rounded-full overflow-hidden">
 
                                   <div
                                     className="h-full bg-red-600"
                                     style={{
-                                      width: `${clamp(
-                                        value
-                                      )}%`
+                                      width:
+                                        `${clamp(
+                                          value
+                                        )}%`
                                     }}
                                   />
 
@@ -3980,6 +4926,7 @@ export default function App() {
                           )}
 
                         </div>
+
 
                         <div className="mt-5 pt-4 border-t border-neutral-800 flex justify-between">
 
@@ -4002,7 +4949,9 @@ export default function App() {
                   )}
 
                 </div>
+
               </div>
+
 
               {/* MAN VS MAN */}
 
@@ -4025,6 +4974,7 @@ export default function App() {
                   </div>
 
                 </div>
+
 
                 <div className="space-y-3">
 
@@ -4049,13 +4999,17 @@ export default function App() {
                         >
 
                           <div className="text-[10px] text-red-500 font-black uppercase tracking-widest mb-3">
+
                             {
                               match.role.icon
-                            }{' '}
+                            }
+                            {' '}
                             {
                               match.role.name
                             }
+
                           </div>
+
 
                           <div className="grid md:grid-cols-[1fr_auto_1fr] gap-4 items-center">
 
@@ -4075,17 +5029,20 @@ export default function App() {
 
                               <div className="font-black mt-1">
                                 {
-                                  match.leftCard.name
+                                  match.leftCard
+                                    .name
                                 }
                               </div>
 
                               <div className="text-[10px] text-red-400">
                                 {
-                                  match.leftCard.form
+                                  match.leftCard
+                                    .form
                                 }
                               </div>
 
                             </div>
+
 
                             <div className="text-center">
 
@@ -4094,16 +5051,25 @@ export default function App() {
                               </div>
 
                               <div className="text-[9px] text-neutral-700 mt-1">
-                                {Math.round(
-                                  match.leftScore
-                                )}{' '}
-                                –{' '}
-                                {Math.round(
-                                  match.rightScore
-                                )}
+
+                                {
+                                  Math.round(
+                                    match.leftScore
+                                  )
+                                }
+
+                                {' – '}
+
+                                {
+                                  Math.round(
+                                    match.rightScore
+                                  )
+                                }
+
                               </div>
 
                             </div>
+
 
                             <div
                               className={`rounded-xl p-3 border ${
@@ -4121,19 +5087,22 @@ export default function App() {
 
                               <div className="font-black mt-1">
                                 {
-                                  match.rightCard.name
+                                  match.rightCard
+                                    .name
                                 }
                               </div>
 
                               <div className="text-[10px] text-red-400">
                                 {
-                                  match.rightCard.form
+                                  match.rightCard
+                                    .form
                                 }
                               </div>
 
                             </div>
 
                           </div>
+
 
                           <p className="text-xs text-neutral-400 mt-4 leading-6">
                             {
@@ -4147,7 +5116,9 @@ export default function App() {
                   )}
 
                 </div>
+
               </div>
+
 
               {/* LOSS ANALYZER */}
 
@@ -4156,8 +5127,11 @@ export default function App() {
                 <div className="flex items-start gap-3">
 
                   <div className="bg-red-600 p-3 rounded-xl">
+
                     <Bot className="w-6 h-6 text-black" />
+
                   </div>
+
 
                   <div>
 
@@ -4173,20 +5147,25 @@ export default function App() {
 
                 </div>
 
+
                 <div className="mt-5 flex flex-col md:flex-row gap-2">
 
                   <input
                     value={
                       lossQuestion
                     }
-                    onChange={(e) =>
+                    onChange={(
+                      event
+                    ) =>
                       setLossQuestion(
-                        e.target.value
+                        event.target.value
                       )
                     }
-                    onKeyDown={(e) => {
+                    onKeyDown={(
+                      event
+                    ) => {
                       if (
-                        e.key ===
+                        event.key ===
                         'Enter'
                       ) {
                         analyzeLoss();
@@ -4196,10 +5175,10 @@ export default function App() {
                     className="flex-1 bg-black border border-neutral-700 focus:border-red-500 rounded-xl px-4 py-3 text-sm outline-none"
                   />
 
+
                   <button
                     onClick={
-                      () =>
-                        analyzeLoss()
+                      analyzeLoss
                     }
                     className="bg-red-600 hover:bg-red-500 text-black font-black px-6 py-3 rounded-xl"
                   >
@@ -4207,6 +5186,7 @@ export default function App() {
                   </button>
 
                 </div>
+
 
                 <div className="flex flex-wrap gap-2 mt-3">
 
@@ -4216,12 +5196,15 @@ export default function App() {
                     'What was my biggest mistake?',
                     'How could I draft better?'
                   ].map(
-                    (question) => (
+                    (
+                      question
+                    ) => (
                       <button
                         key={
                           question
                         }
                         onClick={() => {
+
                           setLossQuestion(
                             question
                           );
@@ -4229,6 +5212,7 @@ export default function App() {
                           analyzeLoss(
                             question
                           );
+
                         }}
                         className="text-[10px] bg-neutral-900 border border-neutral-800 hover:border-red-600 px-3 py-2 rounded-lg text-neutral-400 hover:text-white"
                       >
@@ -4240,6 +5224,7 @@ export default function App() {
                   )}
 
                 </div>
+
 
                 {lossAnswer && (
                   <div className="mt-5 bg-black border border-red-900 rounded-2xl p-5">
@@ -4263,6 +5248,7 @@ export default function App() {
 
               </div>
 
+
               <div className="mt-10 flex flex-col md:flex-row gap-3">
 
                 <button
@@ -4273,9 +5259,13 @@ export default function App() {
                   }
                   className="flex-1 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 py-4 rounded-2xl font-black"
                 >
+
                   <BookOpen className="w-5 h-5 inline-block mr-2" />
+
                   View Rules
+
                 </button>
+
 
                 <button
                   onClick={() =>
@@ -4285,15 +5275,20 @@ export default function App() {
                   }
                   className="flex-1 bg-red-600 hover:bg-red-500 text-black font-black py-4 rounded-2xl"
                 >
+
                   <RotateCcw className="w-5 h-5 inline-block mr-2" />
+
                   New Tournament
+
                 </button>
 
               </div>
 
             </div>
+
           </div>
         )}
+
 
       {/* ===================================================
           HELP MODAL
@@ -4309,8 +5304,11 @@ export default function App() {
               <div className="flex items-center gap-3">
 
                 <div className="bg-red-600 p-2 rounded-xl">
+
                   <BookOpen className="w-5 h-5 text-black" />
+
                 </div>
+
 
                 <div>
 
@@ -4326,6 +5324,7 @@ export default function App() {
 
               </div>
 
+
               <button
                 onClick={() =>
                   setShowHelp(
@@ -4338,6 +5337,7 @@ export default function App() {
               </button>
 
             </div>
+
 
             <div className="flex flex-col md:flex-row min-h-[520px]">
 
@@ -4360,7 +5360,8 @@ export default function App() {
                         )
                       }
                       className={`w-full text-left px-3 py-3 rounded-xl text-xs font-bold mb-1 ${
-                        helpTab === id
+                        helpTab ===
+                        id
                           ? 'bg-red-950 text-red-300 border border-red-800'
                           : 'text-neutral-500 hover:text-white hover:bg-neutral-900'
                       }`}
@@ -4374,6 +5375,7 @@ export default function App() {
 
               </div>
 
+
               <div className="flex-1 p-6 md:p-8 overflow-y-auto">
 
                 <h3 className="text-2xl font-black">
@@ -4383,6 +5385,7 @@ export default function App() {
                     ].title
                   }
                 </h3>
+
 
                 <div className="mt-6 space-y-4">
 
@@ -4407,6 +5410,7 @@ export default function App() {
                           }
                         </span>
 
+
                         <p className="text-sm text-neutral-300 leading-7">
                           {
                             text
@@ -4424,8 +5428,29 @@ export default function App() {
             </div>
 
           </div>
+
         </div>
       )}
+
+      <AITactician
+  screen={screen}
+  context={`
+Anime Arena current screen: ${screen}
+
+Available anime verses:
+${Object.keys(
+  ANIME_VERSES
+).join(', ')}
+
+Loaded character count:
+${Object.values(
+  ANIME_VERSES
+).flat().length}
+
+The AI should explain the game using the supplied
+rules and should never invent tournament mechanics.
+`}
+/>
 
     </div>
   );
