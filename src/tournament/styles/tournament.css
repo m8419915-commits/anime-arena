@@ -1,0 +1,41 @@
+.tournament-shell {
+  min-height: 100vh;
+  isolation: isolate;
+}
+
+.tournament-glass {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.045),
+      rgba(255, 255, 255, 0.015)
+    );
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.tournament-shell button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tournament-shell input::selection {
+  background: rgba(239, 68, 68, 0.35);
+}
+
+@keyframes tournament-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+.tournament-pulse {
+  animation:
+    tournament-pulse
+    2s ease-in-out infinite;
+}

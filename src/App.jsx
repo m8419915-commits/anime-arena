@@ -9,6 +9,10 @@ import {
   EXPANDED_ROLES
 } from './data/animeData';
 
+import {
+  TOURNAMENT_CHARACTERS
+} from './tournament/data/tournamentDatabase';
+
 import GameHub from './components/GameHub';
 import BattleMode from './modes/BattleMode';
 import TournamentMode from './modes/TournamentMode';
@@ -2711,8 +2715,7 @@ export default function App() {
           ]
         ].sort(
           (a, b) =>
-            a[1] -
-            b[1]
+            a[1] - b[1]
         )[0];
 
 
@@ -3031,20 +3034,14 @@ export default function App() {
 
 
       {/* ===================================================
-          TOURNAMENT
+          GRAND TOURNAMENT
       =================================================== */}
 
       {screen ===
         'tournament' && (
         <TournamentMode
-          animeVerses={
-            ANIME_VERSES
-          }
-
-          characterPool={
-            Object.values(
-              ANIME_VERSES
-            ).flat()
+          tournamentCharacters={
+            TOURNAMENT_CHARACTERS
           }
 
           onBack={() =>
@@ -3052,15 +3049,6 @@ export default function App() {
               'gamehub'
             )
           }
-
-          onStartTournament={(
-            config
-          ) => {
-            console.log(
-              'Tournament foundation ready:',
-              config
-            );
-          }}
         />
       )}
 
@@ -4383,30 +4371,30 @@ export default function App() {
           </div>
 
           <AIDraftTactician
-  playerNames={
-    playerNames
-  }
+            playerNames={
+              playerNames
+            }
 
-  teams={
-    teams
-  }
+            teams={
+              teams
+            }
 
-  selectedRoles={
-    selectedRoles
-  }
+            selectedRoles={
+              selectedRoles
+            }
 
-  activePlayerName={
-    activePlayerName
-  }
+            activePlayerName={
+              activePlayerName
+            }
 
-  availableCards={
-    availableCards
-  }
+            availableCards={
+              availableCards
+            }
 
-  liveOdds={
-    liveOdds
-  }
-/>
+            liveOdds={
+              liveOdds
+            }
+          />
 
         </div>
       )}
@@ -5433,8 +5421,11 @@ export default function App() {
       )}
 
       <AITactician
-  screen={screen}
-  context={`
+        screen={
+          screen
+        }
+
+        context={`
 Anime Arena current screen: ${screen}
 
 Available anime verses:
@@ -5447,10 +5438,12 @@ ${Object.values(
   ANIME_VERSES
 ).flat().length}
 
-The AI should explain the game using the supplied
-rules and should never invent tournament mechanics.
+The new Grand Tournament uses a separate tournament
+database and must not invent tournament mechanics.
+AI recommendation is not the official winner in the
+Grand Tournament; participating players decide by vote.
 `}
-/>
+      />
 
     </div>
   );
